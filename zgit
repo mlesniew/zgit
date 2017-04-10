@@ -1,0 +1,55 @@
+#!/bin/bash
+
+GIT_GZIP=.git.tgz
+GIT_DIR="${GIT_DIR:-.git}"
+
+COMPRESS=1
+
+function say()
+{
+    echo "zgit:" "$@" >&2
+}
+
+if [ -e "$GIT_GZIP" -a -e "$GIT_DIR" ]
+then
+    say "both $GIT_GZIP and $GIT_DIR exist, did zgit crash?"
+    say "please check the files manually and remove either"
+    exit 9
+elif [ -e "$GIT_GZIP" ]
+then
+    say "uncompressing $GIT_GZIP..."
+
+    tar -xf "$GIT_GZIP"
+    if [ "$?" -ne 0 ]
+    then
+        say "$GIT_GZIP uncompression failed."
+        exit 9
+    fi
+
+    if [ ! -d "$GIT_DIR" ]
+    then
+        say "$GIT_DIR not present after decompression of $GIT_GZIP."
+        exit 9
+    fi
+
+    rm -rf "$GIT_GZIP"
+
+elif [ -e "$GIT_DIR" ]
+then
+    say "$GIT_DIR exists, but $GIT_GZIP doesn't, working in pure Git mode."
+    say "to migrate to zgit run: tar caf $GIT_GZIP $GIT_DIR && rm -rf $GIT_DIR"
+    COMPRESS=0
+else
+    say "working in pure Git mode"
+fi
+
+git "$@"
+ret=$?
+
+if [ -d "$GIT_DIR" -a "$COMPRESS" -ne 0 ]
+then
+    say "compressing $GIT_DIR..."
+    tar -caf "$GIT_GZIP" "$GIT_DIR" && rm -rf "$GIT_DIR"
+fi
+
+exit $ret
