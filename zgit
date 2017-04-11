@@ -3,53 +3,52 @@
 GIT_GZIP=.git.tgz
 GIT_DIR="${GIT_DIR:-.git}"
 
-COMPRESS=1
-
 function say()
 {
     echo "zgit:" "$@" >&2
 }
 
-if [ -e "$GIT_GZIP" -a -e "$GIT_DIR" ]
+if [ -d "$GIT_DIR" ]
 then
-    say "both $GIT_GZIP and $GIT_DIR exist, did zgit crash?"
-    say "please check the files manually and remove either"
+    say "this appears to be a regular Git repo, to migrate to zgit run:"
+    say "    tar caf $GIT_GZIP $GIT_DIR && rm -rf $GIT_DIR"
     exit 9
-elif [ -e "$GIT_GZIP" ]
-then
-    say "uncompressing $GIT_GZIP..."
+fi
 
-    tar -xf "$GIT_GZIP"
+ZGIT_DIR=$(mktemp -d zgit-XXXXXXXX)
+
+if [ -e "$GIT_GZIP" ]
+then
+    say "uncompressing $GIT_GZIP to $ZGIT_DIR"
+
+    tar -xf "$GIT_GZIP" -C "$ZGIT_DIR"
+
+    if [ ! -d "$ZGIT_DIR/.git" ]
+    then
+        say ".git directory not found after decompression of $GIT_GZIP"
+        rm -rf "$ZGIT_DIR"
+        exit 9
+    fi
+
     if [ "$?" -ne 0 ]
     then
         say "$GIT_GZIP uncompression failed."
+        rm -rf "$ZGIT_DIR"
         exit 9
     fi
-
-    if [ ! -d "$GIT_DIR" ]
-    then
-        say "$GIT_DIR not present after decompression of $GIT_GZIP."
-        exit 9
-    fi
-
-    rm -rf "$GIT_GZIP"
-
-elif [ -e "$GIT_DIR" ]
-then
-    say "$GIT_DIR exists, but $GIT_GZIP doesn't, working in pure Git mode."
-    say "to migrate to zgit run: tar caf $GIT_GZIP $GIT_DIR && rm -rf $GIT_DIR"
-    COMPRESS=0
 else
-    say "working in pure Git mode"
+    ZGIT_DIR=$(mktemp -d)
 fi
 
-git "$@"
+GIT_DIR="$ZGIT_DIR/.git" git "$@"
 ret=$?
 
-if [ -d "$GIT_DIR" -a "$COMPRESS" -ne 0 ]
+if [ -d "$ZGIT_DIR/.git" ]
 then
-    say "compressing $GIT_DIR..."
-    tar -caf "$GIT_GZIP" "$GIT_DIR" && rm -rf "$GIT_DIR"
+    say "compressing $ZGIT_DIR..."
+    tar -caf "$GIT_GZIP" -C "$ZGIT_DIR" .git
 fi
+
+rm -rf "$ZGIT_DIR"
 
 exit $ret
