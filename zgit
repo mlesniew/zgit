@@ -8,6 +8,14 @@ function say()
     echo "zgit:" "$@" >&2
 }
 
+function dbg()
+{
+    if [ -n "$ZGIT_VERBOSE" ]
+    then
+        say "$@"
+    fi
+}
+
 if [ -d "$GIT_DIR" ]
 then
     say "this appears to be a regular Git repo, to migrate to zgit run:"
@@ -19,7 +27,7 @@ ZGIT_DIR=$(mktemp -d zgit-XXXXXXXX)
 
 if [ -e "$GIT_GZIP" ]
 then
-    say "uncompressing $GIT_GZIP to $ZGIT_DIR"
+    dbg "uncompressing $GIT_GZIP to $ZGIT_DIR"
 
     tar -xf "$GIT_GZIP" -C "$ZGIT_DIR"
 
@@ -45,7 +53,7 @@ ret=$?
 
 if [ -d "$ZGIT_DIR/.git" ]
 then
-    say "compressing $ZGIT_DIR..."
+    dbg "compressing $ZGIT_DIR..."
     tar -caf "$GIT_GZIP" -C "$ZGIT_DIR" .git
 fi
 
